@@ -1,114 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Tilt Level</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #222;
-            color: #fff;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-        canvas {
-            background: #111;
-            border: 2px solid #444;
-            border-radius: 50%;
-        }
-        #status {
-            margin-top: 20px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta http-equiv="Permissions-Policy" content="accelerometer=(self), magnetometer=(self)">
+  <title>Liquid Tilt Level</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    canvas {
+      background: #222;
+      border-radius: 50%;
+      border: 2px solid #555;
+    }
+
+    #status {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 16px;
+    }
+  </style>
 </head>
 <body>
 
 <canvas id="bubbleCanvas" width="300" height="300"></canvas>
-<div id="status">Waiting for sensor permission...</div>
+<div id="status">Tap anywhere to activate sensors</div>
 
 <script>
-    const canvas = document.getElementById('bubbleCanvas');
-    const ctx = canvas.getContext('2d');
-    const status = document.getElementById('status');
+  const canvas = document.getElementById('bubbleCanvas');
+  const ctx = canvas.getContext('2d');
+  const status = document.getElementById('status');
 
-    let pitch = 0, roll = 0;
+  let pitch = 0, roll = 0;
 
-    function drawBubble(pitch, roll) {
-        const width = canvas.width;
-        const height = canvas.height;
-        const radius = width / 2;
-        const bubbleRadius = 20;
+  function drawBubble(pitch, roll) {
+    const width = canvas.width;
+    const height = canvas.height;
+    const radius = width / 2;
+    const bubbleRadius = 20;
 
-        // Clear
-        ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, width, height);
 
-        // Draw outer circle
-        ctx.beginPath();
-        ctx.arc(radius, radius, radius - 5, 0, 2 * Math.PI);
-        ctx.strokeStyle = "#aaa";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+    // Draw circular level border
+    ctx.beginPath();
+    ctx.arc(radius, radius, radius - 5, 0, 2 * Math.PI);
+    ctx.strokeStyle = "#999";
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-        // Convert tilt into X/Y offset
-        const maxOffset = radius - bubbleRadius - 5;
-        const x = radius + Math.max(-1, Math.min(1, roll / 90)) * maxOffset;
-        const y = radius - Math.max(-1, Math.min(1, pitch / 90)) * maxOffset;
+    // Tilt to position
+    const maxOffset = radius - bubbleRadius - 5;
+    const x = radius + Math.max(-1, Math.min(1, roll / 90)) * maxOffset;
+    const y = radius - Math.max(-1, Math.min(1, pitch / 90)) * maxOffset;
 
-        // Draw bubble
-        ctx.beginPath();
-        ctx.arc(x, y, bubbleRadius, 0, 2 * Math.PI);
-        ctx.fillStyle = "#00ffcc";
-        ctx.fill();
-        ctx.strokeStyle = "#0ff";
-        ctx.stroke();
+    // Draw bubble
+    ctx.beginPath();
+    ctx.arc(x, y, bubbleRadius, 0, 2 * Math.PI);
+    ctx.fillStyle = "#00ffcc";
+    ctx.fill();
+    ctx.strokeStyle = "#0ff";
+    ctx.stroke();
+  }
+
+  function handleMotion(event) {
+    const acc = event.accelerationIncludingGravity;
+    pitch = Math.atan2(acc.x, Math.sqrt(acc.y ** 2 + acc.z ** 2)) * 180 / Math.PI;
+    roll = Math.atan2(acc.y, acc.z) * 180 / Math.PI;
+  }
+
+  function startMotionTracking() {
+    window.addEventListener('devicemotion', handleMotion, true);
+    setInterval(() => drawBubble(pitch, roll), 100);
+    status.textContent = "Sensors active. Tilt your phone!";
+  }
+
+  function requestMotionPermission() {
+    if (typeof DeviceMotionEvent !== 'undefined' &&
+        typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission()
+        .then(response => {
+          if (response === 'granted') {
+            startMotionTracking();
+          } else {
+            status.textContent = "Permission denied. Tap to try again.";
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          status.textContent = "Permission request failed.";
+        });
+    } else {
+      // No permission needed
+      startMotionTracking();
     }
+  }
 
-    function startSensors() {
-        if ('Accelerometer' in window && 'Magnetometer' in window) {
-            const accel = new Accelerometer({ frequency: 30 });
-
-            accel.addEventListener('reading', () => {
-                // Calculate pitch and roll
-                pitch = Math.atan2(accel.x, Math.sqrt(accel.y ** 2 + accel.z ** 2)) * 180 / Math.PI;
-                roll = Math.atan2(accel.y, accel.z) * 180 / Math.PI;
-            });
-
-            accel.start();
-
-            setInterval(() => {
-                drawBubble(pitch, roll);
-            }, 100);
-
-            status.textContent = "Sensors active. Tilt your phone!";
-        } else {
-            status.textContent = "Sensors not supported on this device or browser.";
-        }
-    }
-
-    // Request permission (needed for iOS-style behavior on some Androids)
-    function requestPermission() {
-        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-            DeviceMotionEvent.requestPermission()
-                .then(response => {
-                    if (response === 'granted') {
-                        startSensors();
-                    } else {
-                        status.textContent = 'Permission denied.';
-                    }
-                })
-                .catch(console.error);
-        } else {
-            startSensors();
-        }
-    }
-
-    document.body.addEventListener('click', requestPermission);
+  // Wait for user interaction to start
+  document.body.addEventListener('click', requestMotionPermission);
 </script>
 
 </body>
