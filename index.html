@@ -3,86 +3,84 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <meta http-equiv="Permissions-Policy" content="accelerometer=(self), magnetometer=(self)">
-  <title>Liquid Tilt Level</title>
+  <meta http-equiv="Permissions-Policy" content="accelerometer=(self)">
+  <title>Glass Tilt Level</title>
   <style>
     body {
       margin: 0;
-      overflow: hidden;
-      background: #111;
-      color: #fff;
-      font-family: Arial, sans-serif;
+      background: #0d0d0d;
+      color: white;
+      font-family: sans-serif;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       height: 100vh;
+      overflow: hidden;
     }
 
-    canvas {
-      background: #222;
-      border-radius: 50%;
-      border: 2px solid #555;
+    .glass {
+      width: 200px;
+      height: 300px;
+      border: 6px solid #ccc;
+      border-radius: 10px;
+      position: relative;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.03);
+      box-shadow: inset 0 0 15px #333;
+    }
+
+    .water {
+      position: absolute;
+      bottom: 0;
+      width: 200%;
+      height: 120%;
+      background: #00bcd4;
+      transform-origin: center top;
+      transition: transform 0.1s ease-out;
+      border-top-left-radius: 50%;
+      border-top-right-radius: 50%;
     }
 
     #status {
       margin-top: 20px;
       text-align: center;
-      font-size: 16px;
     }
   </style>
 </head>
 <body>
 
-<canvas id="bubbleCanvas" width="300" height="300"></canvas>
-<div id="status">Tap anywhere to activate sensors</div>
+<div class="glass">
+  <div class="water" id="water"></div>
+</div>
+<div id="status">Tap to activate sensors</div>
 
 <script>
-  const canvas = document.getElementById('bubbleCanvas');
-  const ctx = canvas.getContext('2d');
   const status = document.getElementById('status');
+  const water = document.getElementById('water');
 
   let pitch = 0, roll = 0;
 
-  function drawBubble(pitch, roll) {
-    const width = canvas.width;
-    const height = canvas.height;
-    const radius = width / 2;
-    const bubbleRadius = 20;
+  function updateWater(pitch, roll) {
+    // Limit angles for visual stability
+    const maxAngle = 20;
+    const xTilt = Math.max(-maxAngle, Math.min(maxAngle, roll));
+    const yTilt = Math.max(-maxAngle, Math.min(maxAngle, pitch));
 
-    ctx.clearRect(0, 0, width, height);
-
-    // Draw circular level border
-    ctx.beginPath();
-    ctx.arc(radius, radius, radius - 5, 0, 2 * Math.PI);
-    ctx.strokeStyle = "#999";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Tilt to position
-    const maxOffset = radius - bubbleRadius - 5;
-    const x = radius + Math.max(-1, Math.min(1, roll / 90)) * maxOffset;
-    const y = radius - Math.max(-1, Math.min(1, pitch / 90)) * maxOffset;
-
-    // Draw bubble
-    ctx.beginPath();
-    ctx.arc(x, y, bubbleRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = "#00ffcc";
-    ctx.fill();
-    ctx.strokeStyle = "#0ff";
-    ctx.stroke();
+    // Apply rotation based on tilt
+    water.style.transform = `rotateX(${yTilt}deg) rotateY(${xTilt}deg)`;
   }
 
   function handleMotion(event) {
     const acc = event.accelerationIncludingGravity;
     pitch = Math.atan2(acc.x, Math.sqrt(acc.y ** 2 + acc.z ** 2)) * 180 / Math.PI;
     roll = Math.atan2(acc.y, acc.z) * 180 / Math.PI;
+    updateWater(pitch, roll);
   }
 
   function startMotionTracking() {
     window.addEventListener('devicemotion', handleMotion, true);
-    setInterval(() => drawBubble(pitch, roll), 100);
-    status.textContent = "Sensors active. Tilt your phone!";
+    status.textContent = "Sensors active — tilt your phone!";
   }
 
   function requestMotionPermission() {
@@ -101,12 +99,10 @@
           status.textContent = "Permission request failed.";
         });
     } else {
-      // No permission needed
-      startMotionTracking();
+      startMotionTracking(); // No permission needed
     }
   }
 
-  // Wait for user interaction to start
   document.body.addEventListener('click', requestMotionPermission);
 </script>
 
